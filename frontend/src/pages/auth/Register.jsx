@@ -1,146 +1,179 @@
-import React, { useState } from "react";
-import styles from "./auth.module.scss";
-import { TiUserAddOutline } from "react-icons/ti";
-import Card from "../../components/card/Card";
-import { Link, useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import { useDispatch, useSelector } from "react-redux";
 import { toast } from "react-toastify";
-import { registerUser, validateEmail } from "../../services/authService";
-import { useDispatch } from "react-redux";
-import { SET_LOGIN, SET_NAME } from "../../redux/features/auth/authSlice";
-import { Loader } from "../../components/loader/Loader";
 
-const initialState = {
-  name: "",
-  email: "",
-  password: "",
-  password2: "",
-};
+import { useRegisterMutation } from "../../redux/api/usersApiSlice";
+import { setCredentials } from "../../redux/features/auth/authSlice";
 
+import Loader from "../../components/Loader";
+import { BiHide, BiShowAlt } from "react-icons/bi";
+import { AiOutlineUserAdd } from "react-icons/ai";
+import { HiOutlineMail } from "react-icons/hi";
+import { RiLockPasswordLine } from "react-icons/ri";
 const Register = () => {
+  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+
+  const [isVisiblePass, setIsVisiblePass] = useState(false);
+
   const dispatch = useDispatch();
   const navigate = useNavigate();
-  const [formData, setformData] = useState(initialState);
-  const [isLoading, setIsLoading] = useState(false);
-  const [eyeicon, setEyeIcon] = useState('-eye')
-  const [visibility, setVisibility] = useState('password')
-  const { name, email, password, password2 } = formData;
 
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setformData({ ...formData, [name]: value });
-  };
+  const [register, { isLoading }] = useRegisterMutation();
 
-  function showPassword() {
-    if (eyeicon === "-eye") {
-      setEyeIcon("-eye-slash");
-      setVisibility("text");
-    } else if (eyeicon === "-eye-slash") {
-      setEyeIcon("-eye");
-      setVisibility("password");
+  const { userInfo } = useSelector((state) => state.auth);
+
+  const { search } = useLocation();
+  const sp = new URLSearchParams(search);
+  const redirect = sp.get("redirect") || "/";
+
+  useEffect(() => {
+    if (userInfo) {
+      navigate(redirect);
     }
-  }
-  const register = async (e) => {
+  }, [navigate, redirect, userInfo]);
+
+  const submitHandler = async (e) => {
     e.preventDefault();
 
-    if (!name || !email || !password) {
-      return toast.error("All fields are required");
-    }
-    if (password.length < 8) {
-      return toast.error("Passwords length should be atleast 8 characters");
-    }
-    if (!validateEmail(email)) {
-      return toast.error("Please enter a valid email");
-    }
-    if (password !== password2) {
-      return toast.error("Passwords do not match");
-    }
-    const username = name
-    const userData = {
-      username,
-      email,
-      password,
-    };
-
-    setIsLoading(true);
-    try {
-      const data = await registerUser(userData);
-      // console.log(data)
-      // await dispatch(SET_LOGIN(true));
-      console.log(data.name)
-      await dispatch(SET_NAME(data.name));
-      navigate("/verifyEmail");
-      setIsLoading(false);
-    } catch (error) {
-      setIsLoading(false);
+    if (password !== confirmPassword) {
+      toast.error("Passwords do not match");
+    } else {
+      try {
+        const res = await register({ username, email, password }).unwrap();
+        dispatch(setCredentials({ ...res }));
+        navigate(redirect);
+        toast.success("User successfully registered");
+      } catch (err) {
+        console.log(err);
+        toast.error(`err.data.message || err.message || err`);
+      }
     }
   };
+
   return (
-    <div className={`container ${styles.auth}`}>
-      {isLoading && <Loader />}
-      <Card>
-        <div className={styles.form}>
-          <div className="--flex-center">
-            <TiUserAddOutline size={35} color="#fff" />
+    <section className="px-6 flex justify-around items-center flex-wrap gap-8 w-full text-[#ffffff] overflow-hidden bg-[#0E1629] min-h-[100vh]">
+      <div className="text-[#e0e0e0]">
+        <h1 className="text-lg md:text-2xl 2xl:text-2xl font-medium mb-2 mt-[5%]">
+          Welcome to Nile! 👋🏻
+        </h1>
+
+        <form
+          onSubmit={submitHandler}
+          className="container w-[21rem] md:w-[33rem] 2xl:w-[36rem]"
+        >
+          <div className="">
+            <label
+              htmlFor="name"
+              className="flex items-center gap-3 text-lg font-medium mb-2 "
+            >
+              <AiOutlineUserAdd size={26} className="text-[#08D9D6]" /> Username
+            </label>
+            <input
+              type="text"
+              id="name"
+              className="mt-1 p-2 border rounded  w-[320px] md:w-[460px] 2xl:w-[520px] mb-4 bg-[#0E1629] placeholder-[#eaeaeab9]  text-[#F6F6F6] outline-none border-[#57575b] focus:border-[#FF2E63]"
+              placeholder="John Doe"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              autoComplete="off"
+            />
           </div>
-          <h2>Sign Up</h2>
-          <form onSubmit={register}>
-            <div className={`${styles.input_icons}`}>
-              <i className={`fa fa-user fa-2x ${styles.icon}`}></i>
-              <input
-                type="text"
-                placeholder="Name"
-                required
-                name="name"
-                value={name}
-                onChange={handleInputChange}
-              />
-            </div>
-            <div className={`${styles.input_icons}`}>
-              <i className={`fa fa-envelope fa-2x ${styles.icon}`}></i>
-              <input
-                type="email"
-                placeholder="Email"
-                required
-                name="email"
-                value={email}
-                onChange={handleInputChange}
-              />
-            </div>
-            <div className={`${styles.input_icons}`}>
-              <i onClick={showPassword} className={`fa fa${eyeicon} fa-2x ${styles.icon}`} style={{cursor: 'pointer'}}></i>
-              <input
-                type={`${visibility}`}
-                placeholder="Password"
-                required
-                name="password"
-                value={password}
-                onChange={handleInputChange}
-              />
-            </div>
-            <div className={`${styles.input_icons}`}>
-              <i onClick={showPassword} className={`fa fa${eyeicon} fa-2x ${styles.icon}`} style={{cursor: 'pointer'}}></i>
-              <input
-                type={`${visibility}`}
-                placeholder="Confirm Password"
-                required
-                name="password2"
-                value={password2}
-                onChange={handleInputChange}
-              />
-            </div>
-            <button type="submit" className="--btn --btn-primary --btn-block">
-              Register
-            </button>
-          </form>
-          <span className={styles.register}>
-            <Link to="/">Home</Link>
-            <p>&nbsp;Already have an account? &nbsp;</p>
-            <Link to="/login">Login</Link>
-          </span>
+
+          <div className="">
+            <label
+              htmlFor="email"
+              className="flex items-center gap-3 text-lg font-medium mb-2 "
+            >
+              <HiOutlineMail size={26} className="text-[#08D9D6]" />
+              Email
+            </label>
+            <input
+              type="email"
+              id="email"
+              className="mt-1 p-2 border rounded  w-[320px] md:w-[460px] 2xl:w-[520px] mb-4 bg-[#0E1629] placeholder-[#eaeaeab9]  text-[#F6F6F6] outline-none border-[#57575b] focus:border-[#FF2E63]"
+              placeholder="jhon.doe@gmail.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              autoComplete="off"
+            />
+          </div>
+
+          <div className="relative">
+            <label
+              htmlFor="password"
+              className="flex items-center gap-3 text-lg font-medium mb-2 "
+            >
+              <RiLockPasswordLine size={26} className="text-[#08D9D6]" />
+              Password
+            </label>
+            <input
+              type={isVisiblePass ? "text" : "password"}
+              id="password"
+              className="mt-1 p-2 border rounded w-[320px] md:w-[460px] 2xl:w-[520px] mb-4 bg-[#0E1629] placeholder-[#eaeaeab9]  text-[#F6F6F6] outline-none border-[#57575b] focus:border-[#FF2E63]"
+              placeholder="********"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+            />
+            <span
+              className="absolute right-8 top-12 md:bottom-0 md:right-24 cursor-pointer"
+              onClick={() => setIsVisiblePass(!isVisiblePass)}
+            >
+              {isVisiblePass ? <BiShowAlt size={20} /> : <BiHide size={20} />}
+            </span>
+          </div>
+
+          <div className="relative">
+            <label
+              htmlFor="confirmPassword"
+              className="flex items-center gap-3 text-lg font-medium mb-2 "
+            >
+              <RiLockPasswordLine size={26} className="text-[#08D9D6]" />
+              Confirm Password
+            </label>
+            <input
+              type={isVisiblePass ? "text" : "password"}
+              id="confirmPassword"
+              className="mt-1 p-2 border rounded w-[320px] md:w-[460px] 2xl:w-[520px] mb-4 bg-[#0E1629] placeholder-[#eaeaeab9]  text-[#F6F6F6] outline-none border-[#57575b] focus:border-[#FF2E63]"
+              placeholder="********"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+            />
+            <span
+              className="absolute right-8 top-12 md:bottom-0 md:right-24 cursor-pointer"
+              onClick={() => setIsVisiblePass(!isVisiblePass)}
+            >
+              {isVisiblePass ? <BiShowAlt size={20} /> : <BiHide size={20} />}
+            </span>
+          </div>
+
+          <button
+            disabled={isLoading}
+            type="submit"
+            className="bg-[#db1143f3] hover:bg-[#FF2E63] transition-colors text-white border-none outline-none w-[320px] md:w-[460px] 2xl:w-[520px] px-4 py-2 rounded cursor-pointer text-base font-semibold"
+          >
+            {isLoading ? "Registering..." : "Register"}
+          </button>
+
+          {isLoading && <Loader />}
+        </form>
+
+        <div className="mt-2">
+          <p className="text-lg">
+            Already have an account?{" "}
+            <Link
+              to={redirect ? `/login?redirect=${redirect}` : "/login"}
+              className="text-[#7367F0] hover:underline shadow-2xl shadow-white"
+            >
+              Login
+            </Link>
+          </p>
         </div>
-      </Card>
-    </div>
+      </div>
+    </section>
   );
 };
-
 export default Register;

@@ -1,124 +1,151 @@
-import React, { useState } from "react";
-import styles from "./auth.module.scss";
-import { BiLogIn } from "react-icons/bi";
-import Card from "../../components/card/Card";
-import { Link, useNavigate } from "react-router-dom";
-import { useDispatch } from "react-redux";
+import { useState, useEffect } from "react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
-import { loginUser, validateEmail } from "../../services/authService";
-import { SET_LOGIN, SET_NAME } from "../../redux/features/auth/authSlice";
-import { Loader } from "../../components/loader/Loader";
 
-const initialState = {
-  email: "",
-  password: "",
-};
+import { useSelector, useDispatch } from "react-redux";
+import { setCredentials } from "../../redux/features/auth/authSlice";
+import { useLoginMutation } from "../../redux/api/usersApiSlice.js";
+
+import Loader from "../../components/Loader.jsx";
+import { HiOutlineMail } from "react-icons/hi";
+import { RiLockPasswordLine } from "react-icons/ri";
+import { BiHide, BiShowAlt } from "react-icons/bi";
 
 const Login = () => {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [isVisiblePass, setIsVisiblePass] = useState(false);
+  const [login, { isLoading }] = useLoginMutation();
+  const { userInfo } = useSelector((state) => state.auth);
   const dispatch = useDispatch();
+
   const navigate = useNavigate();
-  const [isLoading, setIsLoading] = useState(false);
-  const [formData, setformData] = useState(initialState);
-  const [eyeicon, setEyeIcon] = useState('-eye')
-  const [visibility, setVisibility] = useState('password')
-  const { email, password } = formData;
 
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setformData({ ...formData, [name]: value });
-  };
+  const { search } = useLocation();
+  const sp = new URLSearchParams(search);
+  const redirect = sp.get("redirect") || "/";
 
-  function showPassword() {
-    if (eyeicon === "-eye") {
-      setEyeIcon("-eye-slash");
-      setVisibility("text");
-    } else if (eyeicon === "-eye-slash") {
-      setEyeIcon("-eye");
-      setVisibility("password");
+  useEffect(() => {
+    if (userInfo) {
+      navigate(redirect);
     }
-  }
+  }, [navigate, userInfo, redirect]);
 
-  const login = async (e) => {
+  const submitHandler = async (e) => {
     e.preventDefault();
-
-    if (!email || !password) {
-      return toast.error("All fields are required");
-    }
-    if (!validateEmail(email)) {
-      return toast.error("Please enter a valid email");
-    }
-    if (password.length < 8) {
-      return toast.error("Passwords length should be atleast 6 characters");
+    if (email.trim() === "" || password.trim() === "") {
+      toast.error("Please fill all the fields");
+      return;
     }
 
-    const userData = {
-      email,
-      password,
-    };
-    setIsLoading(true);
     try {
-      const data = await loginUser(userData);
-      console.log(data);
-      await dispatch(SET_LOGIN(true));
-      await dispatch(SET_NAME(data.name));
-      navigate("/dashboard");
-      setIsLoading(false);
-    } catch (error) {
-      setIsLoading(false);
+      const res = await login({ email, password }).unwrap();
+      dispatch(setCredentials({ ...res }));
+      navigate(redirect);
+      toast.success("User Successfully LoggedIn");
+    } catch (err) {
+      if (err instanceof Error) {
+        toast.error(err.message);
+      } else {
+        toast.error("An error occurred during login.");
+      }
     }
-    console.log(formData);
   };
 
   return (
-    <div className={`container ${styles.auth}`}>
-      {isLoading && <Loader />}
-      <Card>
-        <div className={styles.form}>
-          <div className="--flex-center">
-            <BiLogIn size={35} color="#fff" />
-          </div>
-          <h2>Login</h2>
-          <form onSubmit={login}>
-            <div className={`${styles.input_icons}`}>
-              <i className={`fa fa-envelope fa-2x ${styles.icon}`}></i>
+    <div className="grid place-content-center items-center bg-[#0E1629] min-h-[100vh]">
+      <section className="ml-2 px-6 flex justify-around items-center flex-wrap gap-8 w-full text-[#ffffff] overflow-hidden pt-[8%]">
+        <div className="text-[#e0e0e0]">
+          <h1 className="text-xl md:text-2xl 2xl:text-3xl font-semibold mb-4 text-[#F6F6F6]">
+            Log In
+          </h1>
+          <h1 className="text-lg md:text-2xl 2xl:text-2xl font-medium mb-2">
+            Welcome to Nile! 👋🏻
+          </h1>
+          <p className="text-base md:text-lg font-medium mb-4">
+            Please sign-in to your account and start the adventure
+          </p>
+
+          <form
+            onSubmit={submitHandler}
+            className="container w-[21rem] md:w-[33rem] 2xl:w-[36rem]"
+          >
+            <div className="">
+              <label
+                htmlFor="email"
+                className="flex items-center gap-3 text-lg font-medium mb-2 "
+              >
+                <HiOutlineMail size={26} className="text-[#08D9D6]" />
+                <span>Email</span>
+              </label>
+
               <input
                 type="email"
-                placeholder="Email"
-                required
-                name="email"
+                id="email"
+                className="mt-1 p-2 border rounded  w-[320px] md:w-[460px] 2xl:w-[520px] mb-4 bg-[#0E1629] placeholder-[#eaeaeab9]  text-[#F6F6F6] outline-none border-[#57575b] focus:border-[#FF2E63]"
+                placeholder="jhon.doe@gmail.com"
                 value={email}
-                onChange={handleInputChange}
+                onChange={(e) => setEmail(e.target.value)}
+                autoComplete="off"
               />
             </div>
-            <div className={`${styles.input_icons}`}>
-              <i
-                onClick={showPassword}
-                className={`fa fa${eyeicon} fa-2x ${styles.icon}`}
-                style={{ cursor: "pointer" }}
-              ></i>
-              <input
-                type={`${visibility}`}
-                placeholder="Password"
-                required
-                name="password"
-                value={password}
-                onChange={handleInputChange}
-              />
+
+            <div className="mb-2">
+              <label
+                htmlFor="password"
+                className="flex items-center gap-3 text-lg font-medium mb-2 "
+              >
+                <RiLockPasswordLine size={26} className="text-[#08D9D6]" />
+                Password
+              </label>
+              <div className="relative">
+                <input
+                  type={isVisiblePass ? "text" : "password"}
+                  id="password"
+                  className="mt-1 p-2 border rounded  w-[320px] md:w-[460px] 2xl:w-[520px] bg-[#0E1629] placeholder-[#eaeaeab9] text-[#F6F6F6] outline-none border-[#57575b] focus:border-[#FF2E63]"
+                  placeholder="********"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                />
+                <span
+                  className="absolute right-8 top-3 md:top-[15px] md:right-24 cursor-pointer"
+                  onClick={() => setIsVisiblePass(!isVisiblePass)}
+                >
+                  {isVisiblePass ? (
+                    <BiShowAlt size={20} />
+                  ) : (
+                    <BiHide size={20} />
+                  )}
+                </span>
+              </div>
             </div>
-            <button type="submit" className="--btn --btn-primary --btn-block">
-              Login
+
+            <button
+              disabled={isLoading}
+              type="submit"
+              className="bg-[#db1143f3] hover:bg-[#FF2E63] transition-colors text-white border-none outline-none w-[320px] md:w-[460px] 2xl:w-[520px] px-4 py-2 rounded cursor-pointer my-[1rem] text-base font-semibold
+              "
+            >
+              {isLoading ? "Signing In..." : "Login"}
             </button>
+
+            {isLoading && <Loader />}
           </form>
-          <Link to="/forgot">Forgot Password</Link>
-          <span className={styles.register}>
-            <Link to="/">Home</Link>
-            <p>&nbsp;Don't have an account? &nbsp;</p>
-            <Link to="/register">Register</Link>
-          </span>
+
+          <div className="mt-4">
+            <p className="text-lg">
+              New Customer?{" "}
+              <Link
+                to={redirect ? `/register?redirect=${redirect}` : "/register"}
+                className="text-[#7367F0] hover:underline shadow-2xl shadow-white"
+              >
+                Create an account
+              </Link>
+            </p>
+          </div>
         </div>
-      </Card>
+      </section>
     </div>
   );
 };
-
 export default Login;
